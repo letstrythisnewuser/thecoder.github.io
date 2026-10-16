@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Letter Encoder</title>
+  <title>Letter Encoder / Decoder</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -12,6 +12,8 @@
       --muted: #8b9bb4;
       --accent: #5eead4;
       --accent-dim: #2dd4bf33;
+      --decode: #93c5fd;
+      --decode-dim: #3b82f633;
       --border: #2a3a4f;
       --input: #121a24;
     }
@@ -31,7 +33,7 @@
 
     .wrap {
       width: 100%;
-      max-width: 640px;
+      max-width: 720px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -48,8 +50,38 @@
     p.hint {
       color: var(--muted);
       font-size: 0.9rem;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
       line-height: 1.45;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .tab {
+      flex: 1;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 0.95rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .tab.active.encode {
+      color: #042f2e;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .tab.active.decode {
+      color: #0b1b33;
+      background: var(--decode);
+      border-color: var(--decode);
     }
 
     label {
@@ -61,6 +93,7 @@
     }
 
     input[type="number"],
+    input[type="text"],
     textarea {
       width: 100%;
       background: var(--input);
@@ -72,14 +105,19 @@
       outline: none;
     }
 
-    input[type="number"]:focus,
-    textarea:focus {
+    input:focus, textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-dim);
     }
 
+    .panel.decode input:focus,
+    .panel.decode textarea:focus {
+      border-color: var(--decode);
+      box-shadow: 0 0 0 3px var(--decode-dim);
+    }
+
     textarea {
-      min-height: 110px;
+      min-height: 90px;
       resize: vertical;
       font-family: inherit;
     }
@@ -93,11 +131,9 @@
 
     .field { margin-bottom: 14px; }
 
-    button {
+    button.run {
       width: 100%;
       margin-top: 4px;
-      background: var(--accent);
-      color: #042f2e;
       border: none;
       border-radius: 10px;
       padding: 12px;
@@ -106,7 +142,17 @@
       cursor: pointer;
     }
 
-    button:hover { filter: brightness(1.08); }
+    .panel.encode button.run {
+      background: var(--accent);
+      color: #042f2e;
+    }
+
+    .panel.decode button.run {
+      background: var(--decode);
+      color: #0b1b33;
+    }
+
+    button.run:hover { filter: brightness(1.08); }
 
     .out {
       margin-top: 20px;
@@ -134,38 +180,79 @@
     }
 
     .steps div { margin: 2px 0; }
+
+    .panel { display: none; }
+    .panel.show { display: block; }
+
+    .warn {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #fbbf24;
+    }
+
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Letter Encoder</h1>
+    <h1>Letter Encoder / Decoder</h1>
     <p class="hint">
-      Each letter becomes its alphabet position (A=1 … Z=26), that number is
-      divided by 2, then the key is added (math, not append). Non-letters are skipped.
+      Encode: letter position (A=1 … Z=26) ÷ 2, then add the key.<br />
+      Decode: subtract the key, × 2, then map back to a letter.
     </p>
 
-    <div class="row">
-      <div>
-        <label for="text">Input text</label>
-        <input id="text" type="text" placeholder="hello" value="hello" />
+    <div class="tabs">
+      <button class="tab active encode" id="tab-encode" type="button">Encode</button>
+      <button class="tab" id="tab-decode" type="button">Decode</button>
+    </div>
+
+    <div class="panel encode show" id="panel-encode">
+      <div class="row">
+        <div>
+          <label for="etext">Input text</label>
+          <input id="etext" type="text" placeholder="hello" value="hello" />
+        </div>
+        <div>
+          <label for="ekey">Key (number)</label>
+          <input id="ekey" type="number" value="3" step="any" />
+        </div>
       </div>
-      <div>
-        <label for="key">Key (number)</label>
-        <input id="key" type="number" value="3" step="any" />
+      <div class="field">
+        <label for="elong">Or longer text</label>
+        <textarea id="elong" placeholder="Type here…"></textarea>
+      </div>
+      <button class="run" type="button" id="ego">Encode</button>
+      <div class="out">
+        <label>Encoded numbers</label>
+        <div class="nums" id="eresult">—</div>
+        <div class="steps" id="esteps"></div>
       </div>
     </div>
 
-    <div class="field">
-      <label for="long">Or longer text</label>
-      <textarea id="long" placeholder="Type here…"></textarea>
-    </div>
-
-    <button type="button" id="go">Encode</button>
-
-    <div class="out">
-      <label>Encoded numbers</label>
-      <div class="nums" id="result">—</div>
-      <div class="steps" id="steps"></div>
+    <div class="panel decode" id="panel-decode">
+      <div class="row">
+        <div>
+          <label for="dnums">Encoded numbers</label>
+          <input id="dnums" type="text" placeholder="7 5.5 9 9 10.5" />
+        </div>
+        <div>
+          <label for="dkey">Key (number)</label>
+          <input id="dkey" type="number" value="3" step="any" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="dlong">Or paste a longer list</label>
+        <textarea id="dlong" placeholder="7 5.5 9 9 10.5"></textarea>
+      </div>
+      <button class="run" type="button" id="dgo">Decode</button>
+      <div class="out">
+        <label>Decoded text</label>
+        <div class="nums" id="dresult">—</div>
+        <div class="warn" id="dwarn"></div>
+        <div class="steps" id="dsteps"></div>
+      </div>
     </div>
   </div>
 
@@ -173,6 +260,17 @@
     function letterNumber(ch) {
       if (!/[a-z]/i.test(ch)) return null;
       return ch.toLowerCase().charCodeAt(0) - 96; // a=1 … z=26
+    }
+
+    function numberToLetter(n) {
+      const i = Math.round(n);
+      if (i < 1 || i > 26) return null;
+      return String.fromCharCode(96 + i);
+    }
+
+    function parseKey(el) {
+      const k = Number(el.value);
+      return Number.isFinite(k) ? k : 0;
     }
 
     function encode(text, key) {
@@ -189,23 +287,89 @@
       return { nums, steps };
     }
 
-    function run() {
-      const short = document.getElementById("text").value;
-      const long = document.getElementById("long").value;
+    function parseNumbers(str) {
+      return str
+        .split(/[\s,;]+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => Number(s))
+        .filter(n => Number.isFinite(n));
+    }
+
+    function decode(nums, key) {
+      const letters = [];
+      const steps = [];
+      let fuzzy = 0;
+      for (const encoded of nums) {
+        const doubled = (encoded - key) * 2;
+        const rounded = Math.round(doubled);
+        const letter = numberToLetter(doubled);
+        const off = Math.abs(doubled - rounded);
+        if (letter === null) {
+          letters.push("?");
+          steps.push(`${encoded} − ${key} = ${encoded - key} × 2 = ${doubled} → ? (not 1–26)`);
+        } else {
+          if (off > 0.0001) fuzzy++;
+          letters.push(letter);
+          const note = off > 0.0001 ? ` (rounded from ${doubled})` : "";
+          steps.push(`${encoded} − ${key} = ${encoded - key} × 2 = ${doubled} → ${letter}${note}`);
+        }
+      }
+      return { text: letters.join(""), steps, fuzzy };
+    }
+
+    function runEncode() {
+      const short = document.getElementById("etext").value;
+      const long = document.getElementById("elong").value;
       const text = long.trim() ? long : short;
-      const key = Number(document.getElementById("key").value);
-      const { nums, steps } = encode(text, Number.isFinite(key) ? key : 0);
-      document.getElementById("result").textContent =
+      const key = parseKey(document.getElementById("ekey"));
+      const { nums, steps } = encode(text, key);
+      document.getElementById("eresult").textContent =
         nums.length ? nums.join("  ") : "(no letters)";
-      document.getElementById("steps").innerHTML =
+      document.getElementById("esteps").innerHTML =
         steps.map(s => `<div>${s}</div>`).join("");
     }
 
-    document.getElementById("go").addEventListener("click", run);
-    ["text", "key", "long"].forEach(id => {
-      document.getElementById(id).addEventListener("input", run);
+    function runDecode() {
+      const short = document.getElementById("dnums").value;
+      const long = document.getElementById("dlong").value;
+      const raw = long.trim() ? long : short;
+      const key = parseKey(document.getElementById("dkey"));
+      const nums = parseNumbers(raw);
+      const { text, steps, fuzzy } = decode(nums, key);
+      document.getElementById("dresult").textContent =
+        nums.length ? text : "(no numbers)";
+      document.getElementById("dwarn").textContent = fuzzy
+        ? "Some values were rounded to the nearest letter."
+        : "";
+      document.getElementById("dsteps").innerHTML =
+        steps.map(s => `<div>${s}</div>`).join("");
+    }
+
+    function show(mode) {
+      const enc = mode === "encode";
+      document.getElementById("panel-encode").classList.toggle("show", enc);
+      document.getElementById("panel-decode").classList.toggle("show", !enc);
+      document.getElementById("tab-encode").classList.toggle("active", enc);
+      document.getElementById("tab-encode").classList.toggle("encode", enc);
+      document.getElementById("tab-decode").classList.toggle("active", !enc);
+      document.getElementById("tab-decode").classList.toggle("decode", !enc);
+    }
+
+    document.getElementById("tab-encode").addEventListener("click", () => show("encode"));
+    document.getElementById("tab-decode").addEventListener("click", () => show("decode"));
+    document.getElementById("ego").addEventListener("click", runEncode);
+    document.getElementById("dgo").addEventListener("click", runDecode);
+
+    ["etext", "ekey", "elong"].forEach(id => {
+      document.getElementById(id).addEventListener("input", runEncode);
     });
-    run();
+    ["dnums", "dkey", "dlong"].forEach(id => {
+      document.getElementById(id).addEventListener("input", runDecode);
+    });
+
+    runEncode();
+    runDecode();
   </script>
 </body>
 </html>
