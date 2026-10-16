@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Letter Encoder</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #5eead4;
+      --accent-dim: #2dd4bf33;
+      --border: #2a3a4f;
+      --input: #121a24;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(ellipse at top, #1a2a3a 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 640px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 650;
+      margin-bottom: 6px;
+    }
+
+    p.hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 22px;
+      line-height: 1.45;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: .02em;
+    }
+
+    input[type="number"],
+    textarea {
+      width: 100%;
+      background: var(--input);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input[type="number"]:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 140px;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    button {
+      width: 100%;
+      margin-top: 4px;
+      background: var(--accent);
+      color: #042f2e;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(1.08); }
+
+    .out {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .nums {
+      font-family: ui-monospace, Consolas, monospace;
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 52px;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    .steps {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-height: 180px;
+      overflow: auto;
+    }
+
+    .steps div { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Letter Encoder</h1>
+    <p class="hint">
+      Each letter becomes its alphabet position (A=1 … Z=26), that number is
+      divided by 2, then the key is added (math, not append). Non-letters are skipped.
+    </p>
+
+    <div class="row">
+      <div>
+        <label for="text">Input text</label>
+        <input id="text" type="text" placeholder="hello" value="hello" />
+      </div>
+      <div>
+        <label for="key">Key (number)</label>
+        <input id="key" type="number" value="3" step="any" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="long">Or longer text</label>
+      <textarea id="long" placeholder="Type here…"></textarea>
+    </div>
+
+    <button type="button" id="go">Encode</button>
+
+    <div class="out">
+      <label>Encoded numbers</label>
+      <div class="nums" id="result">—</div>
+      <div class="steps" id="steps"></div>
+    </div>
+  </div>
+
+  <script>
+    function letterNumber(ch) {
+      if (!/[a-z]/i.test(ch)) return null;
+      return ch.toLowerCase().charCodeAt(0) - 96; // a=1 … z=26
+    }
+
+    function encode(text, key) {
+      const nums = [];
+      const steps = [];
+      for (const ch of text) {
+        const n = letterNumber(ch);
+        if (n === null) continue;
+        const halved = n / 2;
+        const out = halved + key;
+        nums.push(out);
+        steps.push(`${ch} → ${n} ÷ 2 = ${halved} + ${key} = ${out}`);
+      }
+      return { nums, steps };
+    }
+
+    function run() {
+      const short = document.getElementById("text").value;
+      const long = document.getElementById("long").value;
+      const text = long.trim() ? long : short;
+      const key = Number(document.getElementById("key").value);
+      const { nums, steps } = encode(text, Number.isFinite(key) ? key : 0);
+      document.getElementById("result").textContent =
+        nums.length ? nums.join("  ") : "(no letters)";
+      document.getElementById("steps").innerHTML =
+        steps.map(s => `<div>${s}</div>`).join("");
+    }
+
+    document.getElementById("go").addEventListener("click", run);
+    ["text", "key", "long"].forEach(id => {
+      document.getElementById(id).addEventListener("input", run);
+    });
+    run();
+  </script>
+</body>
+</html>
